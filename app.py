@@ -7,10 +7,7 @@ app = Flask(__name__)
 
 @app.route("/", methods=["GET"])
 def home():
-    return jsonify({
-        "name": "JARVIS Cloud",
-        "status": "online"
-    })
+    return jsonify({"name": "JARVIS Cloud", "status": "online"})
 
 @app.route("/health", methods=["GET"])
 def health():
@@ -22,81 +19,75 @@ def ask():
     message = str(data.get("message", "")).strip()
 
     if not message:
-        return jsonify({
-            "error": "Please enter a message, Sir."
-        }), 400
+        return jsonify({"error": "Please enter a message, Sir."}), 400
 
-    api_key = os.environ.get("GEMINI_API_KEY")
-
+    api_key = os.environ.get("OPENROUTER_API_KEY")
     if not api_key:
-        return jsonify({
-            "error": "Gemini API key is not configured."
-        }), 500
+        return jsonify({"error": "OpenRouter API key is not configured."}), 500
 
-    url = (
-        "https://generativelanguage.googleapis.com/"
-        "v1beta/models/gemini-3.8-flash:generateContent"
-    )
+    url = "https://openrouter.ai/api/v1/chat/completions"
 
     payload = {
-        "system_instruction": {
-            "parts": [{
-                "text": (
+        "model": "openrouter/free",
+        "messages": [
+            {
+                "role": "system",
+                "content": (
                     "You are JARVIS, a helpful AI assistant. "
                     "Address the user respectfully as Sir. "
                     "Reply in the language the user uses."
                 )
-            }]
-        },
-        "contents": [{
-            "parts": [{"text": message}]
-        }]
+            },
+            {"role": "user", "content": message}
+        ]
+    }
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "X-Title": "JARVIS Cloud"
     }
 
     try:
         response = requests.post(
-            url,
-            params={"key": api_key},
-            json=payload,
-            timeout=60
+            url, headers=headers, json=payload, timeout=90
         )
 
-        result = response.json()
-
-        
         if response.status_code != 200:
             app.logger.error(
-                "Gemini API error %s: %s",
+                "OpenRouter error %s: %s",
                 response.status_code,
                 response.text[:1000]
             )
             return jsonify({
-                "error": "Gemini API request failed. Check Render logs."
+                "error": "OpenRouter request failed. Check Render logs."
             }), 502
 
-            return jsonify({
-                "error": "Gemini AI request failed. Please check the API setup."
-            }), 502
-
+        result = response.json()
         reply = (
-            result.get("candidates", [{}])[0]
-            .get("content", {})
-            .get("parts", [{}])[0]
-            .get("text", "")
+            result.get("choices", [{}])[0]
+            .get("message", {})
+            .get("content", "")
         )
 
+        if isinstance(reply, list):
+            reply = " ".join(
+                part.get("text", "")
+                for part in reply
+                if isinstance(part, dict)
+            )
+
         if not reply:
-            return jsonify({
-                "error": "Gemini returned an empty response."
-            }), 502
+            return jsonify({"error": "AI returned an empty response."}), 502
 
         return jsonify({"reply": reply})
 
     except requests.RequestException:
-        app.logger.exception("Gemini connection failed")
+        app.logger.exception("OpenRouter connection failed")
         return jsonify({
-            "error": "Could not connect to Gemini AI. Please try again."
+            "error": "Could not connect to OpenRouter. Please try again."
         }), 502
+
 
 if __name__ == "__main__":
     app.run(
