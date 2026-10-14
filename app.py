@@ -63,15 +63,17 @@ def ask():
 
         result = response.json()
 
+        
         if response.status_code != 200:
-    app.logger.error(
-        "Gemini API error %s: %s",
-        response.status_code,
-        response.text[:1000]
-    )
-    return jsonify({
-        "error": "Gemini API request failed. Check Render logs."
-    }), 502
+            app.logger.error(
+                "Gemini API error %s: %s",
+                response.status_code,
+                response.text[:1000]
+            )
+            return jsonify({
+                "error": "Gemini API request failed. Check Render logs."
+            }), 502
+
             return jsonify({
                 "error": "Gemini AI request failed. Please check the API setup."
             }), 502
